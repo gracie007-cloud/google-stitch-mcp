@@ -76,6 +76,7 @@ Settings > MCP > Add New Server
 | **`create_project`** | 📁 Creates a new workspace/project folder. |
 | **`list_projects`** | 📋 Lists all your available Stitch projects. |
 | **`list_screens`** | 📱 Lists all screens within a specific project. |
+| **`get_project`** | 🔍 Retrieves details of a specific project. |
 | **`get_screen`** | ℹ️ Gets metadata for a specific screen. |
 
 ## 💡 Pro Tip: The "Designer Flow"
