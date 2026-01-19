@@ -158,24 +158,119 @@ async function main() {
         // 3. Handlers
         let cachedTools = null;
 
+        const CUSTOM_TOOLS = [
+            {
+                name: "fetch_screen_code",
+                description: "Retrieves the actual HTML/Code content of a screen. Use this when you need to SEE the code.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        projectId: { type: "string", description: "The project ID" },
+                        screenId: { type: "string", description: "The screen ID" }
+                    },
+                    required: ["projectId", "screenId"]
+                }
+            },
+            {
+                name: "fetch_screen_image",
+                description: "Retrieves the screenshot/preview image of a screen.",
+                inputSchema: {
+                    type: "object",
+                    properties: {
+                        projectId: { type: "string", description: "The project ID" },
+                        screenId: { type: "string", description: "The screen ID" }
+                    },
+                    required: ["projectId", "screenId"]
+                }
+            }
+        ];
+
         server.setRequestHandler(ListToolsRequestSchema, async () => {
-            if (cachedTools) return cachedTools;
+            // Always fetch fresh list to ensure connectivity, but we can cache if needed
             try {
                 const result = await callStitchAPI("tools/list", {}, projectId);
-                if (result.result) {
-                    cachedTools = result.result;
-                    return result.result;
-                }
-                return { tools: [] };
+                const tools = result.result ? result.result.tools : [];
+                return { tools: [...tools, ...CUSTOM_TOOLS] };
             } catch (error) {
                 log.error(`Tools list failed: ${error.message}`);
                 // Return empty list instead of crashing, but log error
-                return { tools: [] };
+                return { tools: [...CUSTOM_TOOLS] };
             }
         });
 
         server.setRequestHandler(CallToolRequestSchema, async (request) => {
             const { name, arguments: args } = request.params;
+
+            // --- CUSTOM HANDLERS ---
+            if (name === "fetch_screen_code") {
+                try {
+                    log.info(`Fetching code for screen: ${args.screenId}`);
+                    const screenRes = await callStitchAPI("tools/call", {
+                        name: "get_screen",
+                        arguments: { projectId: args.projectId, screenId: args.screenId }
+                    }, projectId);
+
+                    if (!screenRes.result) throw new Error("Could not fetch screen details");
+
+                    let downloadUrl = null;
+                    const findUrl = (obj) => {
+                        if (downloadUrl) return;
+                        if (!obj || typeof obj !== 'object') return;
+                        if (obj.downloadUrl) { downloadUrl = obj.downloadUrl; return; }
+                        for (const key in obj) findUrl(obj[key]);
+                    };
+                    findUrl(screenRes.result);
+
+                    if (!downloadUrl) return { content: [{ type: "text", text: "No code download URL found." }], isError: true };
+
+                    const res = await fetch(downloadUrl);
+                    if (!res.ok) throw new Error(`Failed to download: ${res.status}`);
+                    const code = await res.text();
+                    return { content: [{ type: "text", text: code }] };
+
+                } catch (err) {
+                    return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+                }
+            }
+
+            if (name === "fetch_screen_image") {
+                try {
+                    log.info(`Fetching image for screen: ${args.screenId}`);
+                    const screenRes = await callStitchAPI("tools/call", {
+                        name: "get_screen",
+                        arguments: { projectId: args.projectId, screenId: args.screenId }
+                    }, projectId);
+
+                    if (!screenRes.result) throw new Error("Could not fetch screen details");
+
+                    let imageUrl = null;
+                    const findImg = (obj) => {
+                        if (imageUrl) return;
+                        if (!obj || typeof obj !== 'object') return;
+                        // Helper: check if string looks like an image URL
+                        const isImgUrl = (s) => typeof s === "string" && (s.includes(".png") || s.includes(".jpg"));
+
+                        if (obj.uri && isImgUrl(obj.uri)) { imageUrl = obj.uri; return; }
+                        if (isImgUrl(obj)) { imageUrl = obj; return; }
+                        for (const key in obj) findImg(obj[key]);
+                    };
+                    findImg(screenRes.result);
+
+                    if (!imageUrl) return { content: [{ type: "text", text: "No image URL found." }], isError: true };
+
+                    return {
+                        content: [
+                            { type: "text", text: `Image URL: ${imageUrl}` },
+                            { type: "image", data: imageUrl, mimeType: "image/png" }
+                        ]
+                    };
+
+                } catch (err) {
+                    return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
+                }
+            }
+            // -----------------------
+
             try {
                 const result = await callStitchAPI("tools/call", { name, arguments: args || {} }, projectId);
 
