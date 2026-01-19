@@ -1,6 +1,6 @@
 {
     "name": "stitch-mcp",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "description": "Universal MCP server for Google Stitch - AI-powered UI/UX design tool. Works with Claude, Cursor, Antigravity, and any MCP-compatible AI.",
     "main": "index.js",
     "bin": {

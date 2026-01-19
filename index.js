@@ -10,6 +10,8 @@ const { Server } = require("@modelcontextprotocol/sdk/server/index.js");
 const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio.js");
 const { exec } = require("child_process");
 const { promisify } = require("util");
+const fs = require("fs");
+const path = require("path");
 const os = require("os");
 const fetch = require("node-fetch");
 
@@ -247,21 +249,52 @@ async function main() {
                     const findImg = (obj) => {
                         if (imageUrl) return;
                         if (!obj || typeof obj !== 'object') return;
-                        // Helper: check if string looks like an image URL
-                        const isImgUrl = (s) => typeof s === "string" && (s.includes(".png") || s.includes(".jpg"));
 
+                        // Priority 1: Explicit Screenshot field structure
+                        if (obj.screenshot && obj.screenshot.downloadUrl) {
+                            imageUrl = obj.screenshot.downloadUrl; return;
+                        }
+
+                        // Priority 2: Generic URI check
+                        const isImgUrl = (s) => typeof s === "string" && (
+                            s.includes(".png") ||
+                            s.includes(".jpg") ||
+                            (s.includes("googleusercontent.com") && !s.includes("contribution.usercontent"))
+                        );
+
+                        if (obj.downloadUrl && isImgUrl(obj.downloadUrl)) { imageUrl = obj.downloadUrl; return; }
                         if (obj.uri && isImgUrl(obj.uri)) { imageUrl = obj.uri; return; }
-                        if (isImgUrl(obj)) { imageUrl = obj; return; }
+
+                        // Priority 3: Check "downloadUrl" in "files" that look like images
+                        if (obj.name && (obj.name.includes("png") || obj.name.includes("jpg")) && obj.downloadUrl) {
+                            imageUrl = obj.downloadUrl; return;
+                        }
+
                         for (const key in obj) findImg(obj[key]);
                     };
                     findImg(screenRes.result);
 
                     if (!imageUrl) return { content: [{ type: "text", text: "No image URL found." }], isError: true };
 
+                    // DOWNLOAD AND SAVE
+                    log.info(`Downloading image from: ${imageUrl}`);
+                    const imgRes = await fetch(imageUrl);
+                    if (!imgRes.ok) throw new Error(`Failed to download image: ${imgRes.status}`);
+
+                    const arrayBuffer = await imgRes.arrayBuffer();
+                    const buffer = Buffer.from(arrayBuffer);
+                    const fileName = `screen_${args.screenId}.png`;
+                    const filePath = path.join(process.cwd(), fileName);
+
+                    fs.writeFileSync(filePath, buffer);
+                    log.info(`Saved image to: ${filePath}`);
+
+                    const base64Img = buffer.toString('base64');
+
                     return {
                         content: [
-                            { type: "text", text: `Image URL: ${imageUrl}` },
-                            { type: "image", data: imageUrl, mimeType: "image/png" }
+                            { type: "text", text: `Image saved to ${fileName}` },
+                            { type: "image", data: base64Img, mimeType: "image/png" }
                         ]
                     };
 
