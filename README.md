@@ -65,25 +65,29 @@ Settings > MCP > Add New Server
 }
 ```
 
-## 🎮 What You Can Do
+## 🛠️ Available Tools
 
-Just talk to your AI naturally!
+| Tool Name | What it does |
+|-----------|--------------|
+| **`extract_design_context`** | 🧠 Scans a screen to extract "Design DNA" (Fonts, Colors, Layouts). Use this to keep style consistent. |
+| **`fetch_screen_code`** | 💾 Downloads the raw HTML/Frontend code of a screen. |
+| **`fetch_screen_image`** | 🖼️ Downloads the high-res screenshot of a screen. |
+| **`generate_screen_from_text`** | ✨ Generates a NEW screen based on your prompt (and context). |
+| **`create_project`** | 📁 Creates a new workspace/project folder. |
+| **`list_projects`** | 📋 Lists all your available Stitch projects. |
+| **`list_screens`** | 📱 Lists all screens within a specific project. |
+| **`get_screen`** | ℹ️ Gets metadata for a specific screen. |
 
-| You say... | Stitch does... |
-|------------|----------------|
-| **"Create a new generic project"** | Creates a project folder for your ideas |
-| **"Design a minimal music player app in dark mode"** | Generates a full UI design |
-| **"Show me the login screen"** | Retrieves screen details |
-| **"Download the HTML for this screen"** | Gets you the code |
+## 💡 Pro Tip: The "Designer Flow"
 
-**Example Flow:**
+To generate consistent UI, use this 2-step flow:
 
-1.  **You**: "Design a habit tracker app"
-2.  **AI**: Calls `stitch-mcp` to generate screen...
-3.  **Stitch**: Returns the design image and HTML
-4.  **AI**: "Here is your design! 🎨"
+1.  **Extract**: "Get design context from the Home Screen..."
+2.  **Generate**: "Using that context, generate a Chat Screen..."
 
-##  License
+This ensures your new screen matches your existing design system perfectly.
+
+## 📄 License
 
 **Apache 2.0** - Open source and free to use.
 
