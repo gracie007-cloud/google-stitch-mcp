@@ -302,6 +302,71 @@ async function main() {
                     return { content: [{ type: "text", text: `Error: ${err.message}` }], isError: true };
                 }
             }
+
+            if (name === "extract_design_context") {
+                try {
+                    log.info(`Extracting design context for: ${args.screenId}`);
+
+                    // 1. Get Code
+                    const screenRes = await callStitchAPI("tools/call", {
+                        name: "get_screen",
+                        arguments: { projectId: args.projectId, screenId: args.screenId }
+                    }, projectId);
+
+                    if (!screenRes.result) throw new Error("Could not fetch screen details");
+
+                    let html = null;
+                    const findHtml = (obj) => {
+                        if (html) return;
+                        if (!obj || typeof obj !== 'object') return;
+                        if (obj.htmlCode && obj.htmlCode.content) { html = obj.htmlCode.content; return; }
+                        for (const k in obj) findHtml(obj[k]);
+                    };
+                    findHtml(screenRes.result);
+
+                    if (!html) return { content: [{ type: "text", text: "HTML content not found in screen data." }], isError: true };
+
+                    // 2. Extract DNA
+                    let fullPrompt = "Based on the following design system:\n\n";
+
+                    // A: Tailwind Config
+                    const tailwindMatch = html.match(/tailwind\.config\s*=\s*({[\s\S]*?})\s*<\/script>/);
+                    if (tailwindMatch) {
+                        const cleanConfig = tailwindMatch[1].replace(/\s+/g, ' ').trim();
+                        fullPrompt += `### Design Tokens (Tailwind)\nUse these EXACT colors and fonts:\n\`\`\`json\n${cleanConfig}\n\`\`\`\n\n`;
+                    }
+
+                    // B: Components
+                    // We look for common markers like TopAppBar, BottomNavigation, etc.
+                    const sections = [
+                        { name: 'Header/TopBar', regex: /<!--\s*TopAppBar\s*-->([\s\S]*?)<!--/ },
+                        { name: 'Bottom Navigation', regex: /<!--\s*BottomNavigation\s*-->([\s\S]*?)<!--/ },
+                        { name: 'Floating Action Button', regex: /<!--\s*Floating Action Button\s*-->([\s\S]*?)<\/div>/ }
+                    ];
+
+                    let foundComponents = 0;
+                    sections.forEach(s => {
+                        const m = html.match(s.regex);
+                        if (m) {
+                            foundComponents++;
+                            fullPrompt += `### ${s.name} Style\nReplicate this structure:\n\`\`\`html\n${m[1].trim()}\n\`\`\`\n\n`;
+                        }
+                    });
+
+                    if (foundComponents === 0) {
+                        fullPrompt += "### UI Style\n(No explicit Header or Nav comments found. Refer to previous screen screenshot for layout.)\n";
+                    }
+
+                    return {
+                        content: [
+                            { type: "text", text: fullPrompt }
+                        ]
+                    };
+
+                } catch (err) {
+                    return { content: [{ type: "text", text: `Error extracting context: ${err.message}` }], isError: true };
+                }
+            }
             // -----------------------
 
             try {
