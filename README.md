@@ -83,7 +83,7 @@ Just talk to your AI naturally!
 3.  **Stitch**: Returns the design image and HTML
 4.  **AI**: "Here is your design! 🎨"
 
-## 📄 License
+##  License
 
 **Apache 2.0** - Open source and free to use.
 

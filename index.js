@@ -11,6 +11,7 @@ const { StdioServerTransport } = require("@modelcontextprotocol/sdk/server/stdio
 const { exec } = require("child_process");
 const { promisify } = require("util");
 const os = require("os");
+const fetch = require("node-fetch");
 
 const execAsync = promisify(exec);
 
@@ -177,6 +178,45 @@ async function main() {
             const { name, arguments: args } = request.params;
             try {
                 const result = await callStitchAPI("tools/call", { name, arguments: args || {} }, projectId);
+
+                // --- AUTO-DOWNLOAD MAGIC ---
+                // Recursively find "downloadUrl" and fetch content
+                if (result.result) {
+                    try {
+                        const processObject = async (obj) => {
+                            if (!obj || typeof obj !== 'object') return;
+
+                            // Check for downloadUrl in current object
+                            if (obj.downloadUrl && typeof obj.downloadUrl === 'string') {
+                                try {
+                                    log.info(`Auto-downloading content from: ${obj.downloadUrl.substring(0, 50)}...`);
+                                    const res = await fetch(obj.downloadUrl);
+                                    if (res.ok) {
+                                        const text = await res.text();
+                                        obj.content = text; // Inject content
+                                        log.success("Content downloaded and injected!");
+                                    } else {
+                                        log.error(`Failed to download: ${res.status}`);
+                                    }
+                                } catch (err) {
+                                    log.error(`Download error: ${err.message}`);
+                                }
+                            }
+
+                            // Recurse into children
+                            for (const key in obj) {
+                                await processObject(obj[key]);
+                            }
+                        };
+
+                        await processObject(result.result);
+                    } catch (e) {
+                        log.error(`Magic processing failed: ${e.message}`);
+                        // Don't fail the whole request, just return original result
+                    }
+                }
+                // ---------------------------
+
                 if (result.result) return result.result;
                 if (result.error) return { content: [{ type: "text", text: `API Error: ${result.error.message}` }], isError: true };
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
