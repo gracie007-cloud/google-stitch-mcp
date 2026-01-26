@@ -92,5 +92,9 @@ This ensures your new screen matches your existing design system perfectly.
 
 **Apache 2.0** - Open source and free to use.
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=Kargatharaakash/stitch-mcp&type=date&legend=top-left)](https://www.star-history.com/#Kargatharaakash/stitch-mcp&type=date&legend=top-left)
+
 ---
 *Built with ❤️ by Aakash Kargathara*
