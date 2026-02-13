@@ -134,6 +134,24 @@ async function callStitchAPI(method, params, projectId) {
     }
 }
 
+/**
+ * Recursively removes non-standard x-* vendor extension keywords
+ * from JSON Schema objects. Google's Stitch API includes proprietary
+ * keys like "x-google-identifier" that cause strict-mode validators
+ * (e.g. Ajv in Augment Code) to reject the schema.
+ */
+function sanitizeSchema(obj) {
+    if (!obj || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map(item => sanitizeSchema(item));
+
+    const cleaned = {};
+    for (const key of Object.keys(obj)) {
+        if (key.startsWith('x-')) continue;
+        cleaned[key] = sanitizeSchema(obj[key]);
+    }
+    return cleaned;
+}
+
 async function main() {
     try {
         log.info(`Starting Stitch MCP Server v1.0.0 (${os.platform()})`);
@@ -191,7 +209,15 @@ async function main() {
             // Always fetch fresh list to ensure connectivity, but we can cache if needed
             try {
                 const result = await callStitchAPI("tools/list", {}, projectId);
-                const tools = result.result ? result.result.tools : [];
+                const rawTools = result.result ? result.result.tools : [];
+                // Sanitize inputSchema to remove x-google-* and other vendor extensions
+                // that cause strict-mode JSON Schema validators to reject the tools
+                const tools = rawTools.map(tool => ({
+                    ...tool,
+                    inputSchema: tool.inputSchema
+                        ? sanitizeSchema(tool.inputSchema)
+                        : tool.inputSchema
+                }));
                 return { tools: [...tools, ...CUSTOM_TOOLS] };
             } catch (error) {
                 log.error(`Tools list failed: ${error.message}`);
@@ -410,7 +436,19 @@ async function main() {
                 }
                 // ---------------------------
 
-                if (result.result) return result.result;
+                if (result.result) {
+                    // Check if result is already valid MCP content
+                    if (result.result.content && Array.isArray(result.result.content)) {
+                        return result.result;
+                    }
+                    // Otherwise wrap raw JSON in text content
+                    return {
+                        content: [{
+                            type: "text",
+                            text: JSON.stringify(result.result, null, 2)
+                        }]
+                    };
+                }
                 if (result.error) return { content: [{ type: "text", text: `API Error: ${result.error.message}` }], isError: true };
                 return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
             } catch (error) {
