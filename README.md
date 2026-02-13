@@ -1,6 +1,13 @@
 # Stitch MCP
+<div align="center">
+
+[![npm version](https://img.shields.io/npm/v/stitch-mcp.svg)](https://www.npmjs.com/package/stitch-mcp)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![MCP](https://img.shields.io/badge/MCP-Compatible-green.svg)](https://modelcontextprotocol.io)
 
 **Universal MCP Server for Google Stitch**
+
+</div> 
 
 Build amazing UI/UX designs instantly with AI. Works seamlessly with Cursor, Claude, Antigravity, and any MCP-compatible editor.
 
